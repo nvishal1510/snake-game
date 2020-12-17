@@ -1,3 +1,7 @@
+//Todo : Initial conditions
+//Todo : Collision detection
+//Todo : Pause/Reset
+
 const canvas = document.querySelector("canvas")
 canvas.width = 1000
 canvas.height = 750
@@ -8,6 +12,8 @@ const r = square_thickness / 2
 const vel_mag = 1
 
 ctx.strokeStyle = "#000000"
+
+let fruit = new Piece(275, 25, 0, 0)
 
 function draw_grid()
 {
@@ -45,8 +51,32 @@ function Turn(x, y, dir)
 {
     this.x = x
     this.y = y
-    // this.point = new Point(x, y)
     this.dir = dir
+}
+
+function get_nearest_sq_center(x, y)
+{
+    return new Point(Math.floor(x / square_thickness) * square_thickness + r,
+        Math.floor(y / square_thickness) * square_thickness + r)
+}
+
+function create_fruit()
+{
+    let fruit_coincides_with_snake = false
+    do
+    {
+        // fruit = new Piece(Math.floor(Math.random() * canvas.width / square_thickness) * square_thickness + r,
+        //     Math.floor(Math.random() * canvas.height / square_thickness) * square_thickness + r, 0, 0)
+        let fruit_point = get_nearest_sq_center(Math.random() * canvas.width, Math.random() * canvas.height)
+        fruit = new Piece(fruit_point.x, fruit_point.y, 0, 0)
+        for (let i = 0; i < snake.pieces.length; i++)
+        {
+            let nearest_sq_center = snake.pieces[i].get_near_sq_center();
+            if (fruit.x === nearest_sq_center.x && fruit.y === nearest_sq_center.y)
+                fruit_coincides_with_snake = true
+        }
+    }
+    while (fruit_coincides_with_snake)
 }
 
 function Piece(x, y, vx, vy)
@@ -57,11 +87,11 @@ function Piece(x, y, vx, vy)
     this.vy = vy
     this.dir = Math.sign(-vy) * Math.atan(vy / vx)
 
-    this.get_square_center = function ()
+    this.get_next_square_center = function ()
     {
         switch (this.dir)
         {
-            //get the edge that is being crossed and add or subtract r based on direction
+            //get the edge that is being crossed and add or subtract r based on piece movement direction
             case Dir.RIGHT:
                 return new Point(square_thickness * Math.floor((this.x + r) / square_thickness) + r, this.y)
             case Dir.DOWN:
@@ -71,6 +101,11 @@ function Piece(x, y, vx, vy)
             case Dir.UP:
                 return new Point(this.x, square_thickness * Math.ceil((this.y - r) / square_thickness) - r)
         }
+    }
+
+    this.get_near_sq_center = function ()
+    {
+        return get_nearest_sq_center(this.x, this.y)
     }
 
     this.draw = function ()
@@ -114,32 +149,45 @@ function Piece(x, y, vx, vy)
         this.y += this.vy
         this.draw()
     }
-
 }
 
-let snake =
+const snake =
     {
-        pieces: [new Piece(square_thickness + r, 0 + r, vel_mag, 0), new Piece(0 + r, 0 + r, vel_mag, 0)],
+        pieces: [],
 
+        //stack that maintains the list of turns to be taken by each piece
+        turns: [],
+
+        eaten_piece: undefined,
+
+        update_eating: function ()
+        {
+            if (Math.sqrt((fruit.x - this.pieces[0].x) ** 2 + (fruit.y - this.pieces[0].y) ** 2) < square_thickness)
+                if (this.eaten_piece === undefined)
+                {
+                    let last_piece = this.pieces.slice(-1)[0]
+                    this.eaten_piece = new Piece(last_piece.get_near_sq_center().x, last_piece.get_near_sq_center().y, last_piece.vx, last_piece.vy)
+                }
+            if (this.pieces[0].x === fruit.x && this.pieces[0].y === fruit.y)
+            {
+                this.pieces.push(this.eaten_piece)
+                this.eaten_piece = undefined
+                fruit = undefined
+            }
+        },
         update: function ()
         {
+            this.update_eating();
+
+            if (this.eaten_piece !== undefined)
+                this.eaten_piece.draw()
+
             for (let i = 0; i < this.pieces.length; i++)
                 this.pieces[i].update()
             draw_grid()
         },
 
-        // TODO: configure adding piece
-        // add_piece: function ()
-        // {
-        //     let last_piece = this.pieces.slice(-1)[0]
-        //     let x = last_piece.x - Math.sign(last_piece.vx) * r
-        //     let y = last_piece.y - Math.sign(last_piece.vy) * r
-        //     this.pieces.push(new Piece(x, y, last_piece.vx, last_piece.vy))
-        // },
-
-        //stack that maintains the list of turns to be taken by each piece
-        turns: []
-    }
+    };
 
 window.addEventListener("keydown", function (event)
 {
@@ -163,12 +211,14 @@ window.addEventListener("keydown", function (event)
         return
 
     console.log("turn_dir = " + turn_dir / Math.PI)
+
     let first_piece = snake.pieces[0]
     let snake_dir = Math.sign(-first_piece.vy) * Math.atan(first_piece.vy / first_piece.vx)
+    //if snake_dir and turn_dir are in same direction or exactly opposite direction, then return
     if ([0, 1, 2].includes(Math.abs(snake_dir - turn_dir) / Math.PI))
         return
 
-    let turn_point = first_piece.get_square_center()
+    let turn_point = first_piece.get_next_square_center()
     // if more than one turns are given at the same square, last one is considered
     let last_turn = snake.turns.slice(-1)[0]
     if (last_turn !== undefined)
@@ -180,6 +230,8 @@ window.addEventListener("keydown", function (event)
 
 function init()
 {
+    snake.pieces.push(new Piece(square_thickness + r, 0 + r, vel_mag, 0))
+    snake.pieces.push(new Piece(0 + r, 0 + r, vel_mag, 0))
     for (let i = 0; i < snake.pieces.length; i++)
         snake.pieces[i].draw()
     draw_grid();
@@ -190,6 +242,9 @@ function play()
 {
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     snake.update()
+    if (fruit === undefined)
+        create_fruit();
+    fruit.draw()
     window.requestAnimationFrame(play)
 }
 
