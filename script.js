@@ -6,14 +6,15 @@ const canvas = document.querySelector("canvas")
 canvas.width = 1000
 canvas.height = 750
 const ctx = canvas.getContext("2d")
+ctx.strokeStyle = "#000000"
 
 const square_thickness = 50
 const r = square_thickness / 2
 const vel_mag = 1
 
-ctx.strokeStyle = "#000000"
+let fruit = undefined
 
-let fruit = new Piece(275, 25, 0, 0)
+let is_pause = false
 
 function draw_grid()
 {
@@ -77,6 +78,7 @@ function create_fruit()
         }
     }
     while (fruit_coincides_with_snake)
+    return fruit
 }
 
 function Piece(x, y, vx, vy)
@@ -174,20 +176,41 @@ const snake =
                 this.eaten_piece = undefined
                 fruit = undefined
             }
+            if (this.eaten_piece !== undefined)
+                this.eaten_piece.draw()
         },
+
         update: function ()
         {
             this.update_eating();
-
-            if (this.eaten_piece !== undefined)
-                this.eaten_piece.draw()
-
             for (let i = 0; i < this.pieces.length; i++)
                 this.pieces[i].update()
             draw_grid()
         },
 
+        reset: function ()
+        {
+            this.pieces=[]
+            this.turns=[]
+            this.eaten_piece=undefined
+        }
+
     };
+
+function pause_resume()
+{
+    is_pause = !is_pause
+    if (!is_pause)
+        play()
+}
+
+function reset()
+{
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    snake.reset()
+    init()
+    is_pause=true
+}
 
 window.addEventListener("keydown", function (event)
 {
@@ -205,11 +228,18 @@ window.addEventListener("keydown", function (event)
             break
         case "d":
             turn_dir = Dir.RIGHT
-            console.log("d keydown event")
+            break
+        case "p":
+            pause_resume()
+            break
+        case "r":
+            if (is_pause)
+                reset()
     }
+    if (is_pause)
+        return
     if (turn_dir === undefined)
         return
-
     console.log("turn_dir = " + turn_dir / Math.PI)
 
     let first_piece = snake.pieces[0]
@@ -230,20 +260,25 @@ window.addEventListener("keydown", function (event)
 
 function init()
 {
+    // fruit = new Piece(275, 25, 0, 0);
     snake.pieces.push(new Piece(square_thickness + r, 0 + r, vel_mag, 0))
     snake.pieces.push(new Piece(0 + r, 0 + r, vel_mag, 0))
+    create_fruit()
     for (let i = 0; i < snake.pieces.length; i++)
         snake.pieces[i].draw()
+    fruit.draw()
     draw_grid();
     console.log("Initialised")
 }
 
 function play()
 {
+    if (is_pause)
+        return
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     snake.update()
     if (fruit === undefined)
-        create_fruit();
+        create_fruit()
     fruit.draw()
     window.requestAnimationFrame(play)
 }
