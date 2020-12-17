@@ -27,22 +27,26 @@ function draw_grid()
     }
 }
 
-draw_grid();
-
-// TODO: configure for long presses
-// var is_key_up = true
-
-const Dir = {
-    RIGHT: 0,
-    UP: Math.PI / 2,
-    LEFT: Math.PI,
-    DOWN: 1.5 * Math.PI
-}
+const Dir =
+    {
+        RIGHT: 0,
+        UP: Math.PI / 2,
+        LEFT: Math.PI,
+        DOWN: 1.5 * Math.PI
+    }
 
 function Point(x, y)
 {
     this.x = x
     this.y = y
+}
+
+function Turn(x, y, dir)
+{
+    this.x = x
+    this.y = y
+    // this.point = new Point(x, y)
+    this.dir = dir
 }
 
 function Piece(x, y, vx, vy)
@@ -55,7 +59,6 @@ function Piece(x, y, vx, vy)
 
     this.get_square_center = function ()
     {
-
         switch (this.dir)
         {
             //get the edge that is being crossed and add or subtract r based on direction
@@ -84,12 +87,6 @@ function Piece(x, y, vx, vy)
             if (this.x === snake.turns[i].x && this.y === snake.turns[i].y)
             {
                 console.log(this, "turning", snake.turns[i])
-                // let theta = snake.turns[i].dir - Math.sign(-this.vy) * Math.atan(this.vy / this.vx);
-                // [this.vx, this.vy] = [this.vx * Math.cos(theta) + this.vy * Math.sin(theta),
-                //     this.vx * Math.sin(theta) - this.vy * Math.cos(theta)];
-                // this.vx = Math.round(this.vx)
-                // this.vy = Math.round(this.vy)
-
                 switch (snake.turns[i].dir)
                 {
                     case Dir.RIGHT:
@@ -108,22 +105,16 @@ function Piece(x, y, vx, vy)
                         console.log("An error occurred while turning")
                 }
                 this.dir = snake.turns[i].dir
-                if(this===snake.pieces[snake.pieces.length-1])
+                if (this === snake.pieces[snake.pieces.length - 1])
                     snake.turns.shift()
                 break
             }
+
         this.x += this.vx
         this.y += this.vy
         this.draw()
     }
 
-}
-
-function Turn(x, y, dir)
-{
-    this.x = x
-    this.y = y
-    this.dir = dir
 }
 
 let snake =
@@ -146,14 +137,12 @@ let snake =
         //     this.pieces.push(new Piece(x, y, last_piece.vx, last_piece.vy))
         // },
 
+        //stack that maintains the list of turns to be taken by each piece
         turns: []
-
     }
 
 window.addEventListener("keydown", function (event)
 {
-    // if (!is_key_up)
-    //     return
     let turn_dir = undefined
     switch (event.key)
     {
@@ -168,6 +157,7 @@ window.addEventListener("keydown", function (event)
             break
         case "d":
             turn_dir = Dir.RIGHT
+            console.log("d keydown event")
     }
     if (turn_dir === undefined)
         return
@@ -175,20 +165,24 @@ window.addEventListener("keydown", function (event)
     console.log("turn_dir = " + turn_dir / Math.PI)
     let first_piece = snake.pieces[0]
     let snake_dir = Math.sign(-first_piece.vy) * Math.atan(first_piece.vy / first_piece.vx)
-    if (Math.abs(snake_dir - turn_dir) / Math.PI === 0 || Math.abs(snake_dir - turn_dir) / Math.PI === 1 || Math.abs(snake_dir - turn_dir) / Math.PI === 2)
+    if ([0, 1, 2].includes(Math.abs(snake_dir - turn_dir) / Math.PI))
         return
 
-    snake.turns.push(new Turn(first_piece.get_square_center().x, first_piece.get_square_center().y, turn_dir))
-    // is_key_up = false
+    let turn_point = first_piece.get_square_center()
+    // if more than one turns are given at the same square, last one is considered
+    let last_turn = snake.turns.slice(-1)[0]
+    if (last_turn !== undefined)
+        if (turn_point.x === last_turn.x && turn_point.y === last_turn.y)
+            snake.turns.pop()
+    snake.turns.push(new Turn(turn_point.x, turn_point.y, turn_dir));
 
 })
-
 
 function init()
 {
     for (let i = 0; i < snake.pieces.length; i++)
         snake.pieces[i].draw()
-
+    draw_grid();
     console.log("Initialised")
 }
 
@@ -198,7 +192,6 @@ function play()
     snake.update()
     window.requestAnimationFrame(play)
 }
-
 
 init()
 play()
