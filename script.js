@@ -1,7 +1,3 @@
-//Todo : Initial conditions
-//Todo : Collision detection
-//Todo : Pause/Reset
-
 const canvas = document.querySelector("canvas")
 canvas.width = 1000
 canvas.height = 750
@@ -15,6 +11,7 @@ const vel_mag = 1
 let fruit = undefined
 
 let is_pause = false
+let is_game_over = false
 
 function draw_grid()
 {
@@ -79,6 +76,32 @@ function create_fruit()
     }
     while (fruit_coincides_with_snake)
     return fruit
+}
+
+function pause_resume()
+{
+    if (is_game_over)
+        return
+    is_pause = !is_pause
+    if (!is_pause)
+        play()
+}
+
+function reset()
+{
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    snake.reset()
+    init()
+    is_pause = true
+    is_game_over = false
+}
+
+function game_over()
+{
+    console.log("Method: game_over()")
+    is_game_over = true
+    is_pause = true
+    alert(`Your score is ${snake.pieces.length - 2} points`)
 }
 
 function Piece(x, y, vx, vy)
@@ -162,6 +185,20 @@ const snake =
 
         eaten_piece: undefined,
 
+        is_colliding: function ()
+        {
+            //snake head - snake collision (legal closes distance between two circles is while turning equal to square_thickness/sqrt(2) )
+            for (let i = 1; i < this.pieces.length; i++)
+                if (Math.sqrt((this.pieces[i].x - this.pieces[0].x) ** 2 + (this.pieces[i].y - this.pieces[0].y) ** 2) < square_thickness / 2 ** 0.5)
+                {
+                    console.log(`dist = ${Math.sqrt((this.pieces[i].x - this.pieces[0].x) ** 2 + (this.pieces[i].y - this.pieces[0].y) ** 2)}`)
+                    return true
+                }
+
+            //snake head - boundary collision
+            return this.pieces[0].x + r > canvas.width || this.pieces[0].x - r < 0 || this.pieces[0].y + r > canvas.height || this.pieces[0].y - r < 0
+        },
+
         update_eating: function ()
         {
             if (Math.sqrt((fruit.x - this.pieces[0].x) ** 2 + (fruit.y - this.pieces[0].y) ** 2) < square_thickness)
@@ -190,27 +227,12 @@ const snake =
 
         reset: function ()
         {
-            this.pieces=[]
-            this.turns=[]
-            this.eaten_piece=undefined
+            this.pieces = []
+            this.turns = []
+            this.eaten_piece = undefined
         }
 
     };
-
-function pause_resume()
-{
-    is_pause = !is_pause
-    if (!is_pause)
-        play()
-}
-
-function reset()
-{
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-    snake.reset()
-    init()
-    is_pause=true
-}
 
 window.addEventListener("keydown", function (event)
 {
@@ -275,6 +297,11 @@ function play()
 {
     if (is_pause)
         return
+    if (snake.is_colliding())
+    {
+        game_over()
+        return
+    }
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     snake.update()
     if (fruit === undefined)
